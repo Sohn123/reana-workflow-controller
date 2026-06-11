@@ -423,3 +423,25 @@ def test_create_job_spec_drops_colliding_job_controller_env_vars(
     assert not any(
         "workflow_runtime_user_uid" in message for message in warning_messages
     )
+
+
+def test_interactive_session_uses_per_session_secret(sample_serial_workflow_in_db):
+    """Per-session random secret is stored and used as the notebook token."""
+    with patch.multiple(
+        "reana_workflow_controller.k8s",
+        current_k8s_corev1_api_client=DEFAULT,
+        current_k8s_networking_api_client=DEFAULT,
+        current_k8s_appsv1_api_client=DEFAULT,
+    ) as mocks:
+        kwrm = KubernetesWorkflowRunManager(sample_serial_workflow_in_db)
+        kwrm.start_interactive_session(
+            InteractiveSessionType(0).name, expose_secrets=False
+        )
+        int_session = sample_serial_workflow_in_db.sessions[0]
+        secret = int_session.session_secret
+        assert secret
+        assert len(secret) >= 32
+        deployment_call = mocks[
+            "current_k8s_appsv1_api_client"
+        ].create_namespaced_deployment.call_args
+        assert f"--NotebookApp.token='{secret}'" in repr(deployment_call)

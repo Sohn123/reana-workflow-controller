@@ -11,6 +11,7 @@ import copy
 import json
 import logging
 import os
+import secrets
 from typing import List, Optional
 
 from flask import current_app
@@ -510,6 +511,9 @@ class KubernetesWorkflowRunManager(WorkflowRunManager):
         try:
             access_path = self._generate_interactive_workflow_path()
             workflow_run_name = self._workflow_run_name_generator("session")
+            # Random per-session secret used as the notebook access token,
+            # so that no user credential ever reaches the runtime layer.
+            session_secret = secrets.token_urlsafe(32)
             kubernetes_objects = build_interactive_k8s_objects[
                 interactive_session_type
             ](
@@ -517,7 +521,7 @@ class KubernetesWorkflowRunManager(WorkflowRunManager):
                 self.workflow.workspace_path,
                 access_path,
                 validated_image,
-                access_token=self.workflow.get_owner_access_token(),
+                session_secret=session_secret,
                 cvmfs_repos=self.retrieve_required_cvmfs_repos(),
                 owner_id=self.workflow.owner_id,
                 workflow_id=self.workflow.id_,
@@ -538,6 +542,7 @@ class KubernetesWorkflowRunManager(WorkflowRunManager):
                 path=access_path,
                 type_=interactive_session_type,
                 owner_id=self.workflow.owner_id,
+                session_secret=session_secret,
             )
             self.workflow.sessions.append(int_session)
             current_db_sessions = Session.object_session(self.workflow)

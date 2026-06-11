@@ -346,7 +346,7 @@ def build_interactive_jupyter_deployment_k8s_objects(
     workspace,
     access_path,
     image,
-    access_token=None,
+    session_secret=None,
     cvmfs_repos=None,
     owner_id=None,
     workflow_id=None,
@@ -368,6 +368,8 @@ def build_interactive_jupyter_deployment_k8s_objects(
         a ``404``.
     :param image: Jupyter Notebook image to use, i.e.
         ``jupyter/tensorflow-notebook`` to enable ``tensorflow``.
+    :param session_secret: Random per-session secret used as the notebook
+        access token (never a user credential).
     :param cvmfs_mounts: List of CVMFS repos to make available.
     :param owner_id: Owner of the interactive session.
     :param workflow_id: UUID of the workflow to which the interactive
@@ -386,9 +388,11 @@ def build_interactive_jupyter_deployment_k8s_objects(
         "--notebook-dir='{workflow_workspace}'".format(workflow_workspace=workspace),
         f'--NotebookApp.terminado_settings={{"shell_command": ["/usr/bin/bash", "-c", "cd \'{workspace}\' && bash"]}}',
     ]
-    if access_token:
+    if session_secret:
         command_args.append(
-            "--NotebookApp.token='{access_token}'".format(access_token=access_token)
+            "--NotebookApp.token='{session_secret}'".format(
+                session_secret=session_secret
+            )
         )
     deployment_builder.add_command_arguments(command_args)
     deployment_builder.add_reana_shared_storage()
